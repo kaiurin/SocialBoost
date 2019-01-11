@@ -73,13 +73,20 @@ function boostPost(deviceAddress, task_id) {
         } else if (rows[0].account_type === 'boost_post' && rows[0].step_booster === 'task_payment') {
             db.query("SELECT repost_target, like_target, assoc_address, user_address FROM boost_tasks WHERE device_address = ? AND task_id = ?",
                 [deviceAddress, task_id], rows => {
-                    let price = 10000 * rows[0].like_target + 1000 * rows[0].repost_target;
-                    device.sendMessageToDevice(deviceAddress, 'text', "Your order: \n" +
-                        'UpVotes - ' + rows[0].like_target +
-                        '\nReposts - ' + rows[0].repost_target +
-                        '\nTotal price is - ' + price + " bytes" +
-                        '\nTo pay click on button below.');
-                    device.sendMessageToDevice(deviceAddress, 'text', '[balance](byteball:' + rows[0].assoc_address + '?amount=' + price + ')');
+                    if (rows[0].repost_target === 0 && rows[0].like_target === 0) {
+                        device.sendMessageToDevice(deviceAddress, 'text', 'You ordered - nothing.' +
+                            '\n Change post what must be boosted or choose more likes and reposts');
+                        db.query("UPDATE users SET step_booster = ? WHERE device_address = ?", ['author_request', deviceAddress]);
+                        boostPost(deviceAddress, task_id);
+                    } else {
+                        let price = 10000 * rows[0].like_target + 1000 * rows[0].repost_target;
+                        device.sendMessageToDevice(deviceAddress, 'text', "Your order: \n" +
+                            'UpVotes - ' + rows[0].like_target +
+                            '\nReposts - ' + rows[0].repost_target +
+                            '\nTotal price is - ' + price + " bytes" +
+                            '\nTo pay click on button below.');
+                        device.sendMessageToDevice(deviceAddress, 'text', '[balance](byteball:' + rows[0].assoc_address + '?amount=' + price + ')');
+                    }
                 });
 
         }
@@ -212,7 +219,7 @@ eventBus.once('headless_wallet_ready', () => {
             })
 
 
-        } else if (text === 'statistics') { ///!!!
+        } else if (text === 'statistics') {
 
 
             db.query("SELECT task_id, author_steem_login, post_perm_link, like_target, repost_target, " +
@@ -251,16 +258,22 @@ eventBus.once('headless_wallet_ready', () => {
                     db.query("UPDATE users SET user_address = ?, step_worker = ? WHERE device_address = ?", [text, 'steem_login_request', from_address]);
                     earnBytes(from_address)
                 } else if (rows[0].account_type === 'earn_bytes' && rows[0].step_worker === 'steem_login_request') {
-                    db.query("UPDATE users SET steem_login = ?, step_worker = ? WHERE device_address = ? ", [text, 'steem_private_postkey_request', from_address]);
-                    userSteemLogin = text;
-                    earnBytes(from_address, userSteemLogin)
+
+                    db.query("SELECT * FROM users WHERE steem_login = ?", [text.toLowerCase()], rows => {
+                        if (rows.length === 0) {
+                            db.query("UPDATE users SET steem_login = ?, step_worker = ? WHERE device_address = ? ", [text.toLowerCase(), 'steem_private_postkey_request', from_address]);
+                            userSteemLogin = text.toLowerCase();
+                            earnBytes(from_address, userSteemLogin)
+                        } else {
+                            device.sendMessageToDevice(from_address, 'text', 'This login already registered!');
+                        }
+                    })
 
                 } else if (rows[0].account_type === 'earn_bytes' && rows[0].step_worker === 'steem_private_postkey_request') {
 
                     db.query("INSERT INTO worker_stats(device_address) VALUES (?)", [from_address]);
                     db.query("UPDATE users SET steem_private_post_key = ?, step_worker = ? WHERE device_address = ?", [text, 'worker_info', from_address]);
                     earnBytes(from_address)
-
 
                 }
 
@@ -269,7 +282,7 @@ eventBus.once('headless_wallet_ready', () => {
                     db.query("UPDATE users SET step_booster = ? WHERE device_address = ?", ['permlink_request', from_address]);
                     db.query("INSERT INTO boost_tasks(device_address, status) VALUES (?, ?)", [from_address, 'new']);
                     db.query("SELECT task_id FROM boost_tasks WHERE device_address = ? AND status = ?", [from_address, 'new'], rows => {
-                        db.query("UPDATE boost_tasks SET author_steem_login = ? WHERE task_id = ?", [text, rows[0].task_id]);
+                        db.query("UPDATE boost_tasks SET author_steem_login = ? WHERE task_id = ?", [text.toLowerCase(), rows[0].task_id]);
                         boostPost(from_address)
                     });
 
