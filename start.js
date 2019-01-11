@@ -110,8 +110,9 @@ function earnBytes(deviceAddress, userSteemLogin) {
         } else if (rows[0].account_type === 'earn_bytes' && rows[0].step_worker === 'steem_private_postkey_request') {
 
             device.sendMessageToDevice(deviceAddress, 'text', "Please, send me your steem private-post-key of your steem login.\n" +
-                "To find it, you must open this link: https://steemit.com/@" + userSteemLogin + "/permissions \n" +
-                "And then click on 'SHOW PRIVATE KEY' button near POSTING KEY");
+                "To find it, you must open this link and then click on 'SHOW PRIVATE KEY' button near POSTING KEY \n" +
+                "Then copy appeared 'PRIVATE POST KEY'\n" +
+                "https://steemit.com/@" + userSteemLogin + "/permissions ");
 
         } else if (rows[0].account_type === 'earn_bytes' && rows[0].step_worker === 'worker_info') {
 
@@ -237,7 +238,7 @@ eventBus.once('headless_wallet_ready', () => {
                             "\nRepost target - " + rows[i].repost_target +
                             "\nRepost status - " + rows[i].repost_status +
                             "\nOrder status - " + rows[i].status +
-                            "\n--------------------------";
+                            "\n--------------------------\n";
                     }
                     device.sendMessageToDevice(from_address, 'text', text);
                     device.sendMessageToDevice(from_address, 'text',
@@ -259,15 +260,23 @@ eventBus.once('headless_wallet_ready', () => {
                     earnBytes(from_address)
                 } else if (rows[0].account_type === 'earn_bytes' && rows[0].step_worker === 'steem_login_request') {
 
-                    db.query("SELECT * FROM users WHERE steem_login = ?", [text.toLowerCase()], rows => {
-                        if (rows.length === 0) {
-                            db.query("UPDATE users SET steem_login = ?, step_worker = ? WHERE device_address = ? ", [text.toLowerCase(), 'steem_private_postkey_request', from_address]);
-                            userSteemLogin = text.toLowerCase();
-                            earnBytes(from_address, userSteemLogin)
+                    client.database.getAccounts([text.toLowerCase()]).then(result => {
+                        if (result[0]) {
+                            db.query("SELECT * FROM users WHERE steem_login = ?", [text.toLowerCase()], rows => {
+                                if (rows.length === 0) {
+                                    db.query("UPDATE users SET steem_login = ?, step_worker = ? WHERE device_address = ? ", [text.toLowerCase(), 'steem_private_postkey_request', from_address]);
+                                    userSteemLogin = text.toLowerCase();
+                                    earnBytes(from_address, userSteemLogin)
+                                } else {
+                                    device.sendMessageToDevice(from_address, 'text', 'This login already registered!');
+                                }
+                            })
                         } else {
-                            device.sendMessageToDevice(from_address, 'text', 'This login already registered!');
+                            device.sendMessageToDevice(from_address, 'text', 'This login does not exist!');
                         }
-                    })
+                    });
+
+
 
                 } else if (rows[0].account_type === 'earn_bytes' && rows[0].step_worker === 'steem_private_postkey_request') {
 
@@ -485,7 +494,13 @@ eventBus.once('headless_wallet_ready', () => {
                 })
             },
             function (error) {
-                console.error('error:', error);
+                if (error.message.match(/Your current vote on this comment/)) {
+                    db.query("INSERT INTO workers_log(steem_login,login_action,task_id,post_author,post_perm_link) VALUES (?, ?, ?, ?, ?)",
+                        [voteData.voter, 'like', task_id, voteData.author_login, voteData.perm_link]);
+                } else {
+                    console.error('error:', error);
+                }
+
             }
         );
     }
