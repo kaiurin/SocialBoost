@@ -1,10 +1,10 @@
 {
-	"name": "SocialBoost Bot",
+	"name": "bot-example",
 	"version": "1.0.0",
-	"description": "Bot for Byteball wallet",
+	"description": "Example source code for Byteball chatbot",
 	"main": "start.js",
 	"repository": "https://github.com/byteball/bot-example.git",
-	"author": "kaiurin",
+	"author": "tony",
 	"license": "MIT",
 	"dependencies": {
 		"dsteem": "git+https://github.com/jnordberg/dsteem.git",

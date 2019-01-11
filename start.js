@@ -164,6 +164,7 @@ eventBus.once('headless_wallet_ready', () => {
     eventBus.on('text', (from_address, text) => {
         const device = require('byteballcore/device.js');
         text = text.trim();
+
         if (text === 'earn_bytes') {
 
             db.query("UPDATE users SET account_type = ? WHERE device_address = ? ", ['earn_bytes', from_address]);
@@ -221,7 +222,6 @@ eventBus.once('headless_wallet_ready', () => {
                 } else {
                     let text = 'ORDERS:\n';
                     for (let i = 0; i < rows.length; i++) {
-                        console.error(rows[i]);
                         text += "Task id - " + rows[i].task_id +
                             "\nPost author - " + rows[i].author_steem_login +
                             "\nPost permlink - " + rows[i].post_perm_link +
@@ -233,6 +233,8 @@ eventBus.once('headless_wallet_ready', () => {
                             "\n--------------------------";
                     }
                     device.sendMessageToDevice(from_address, 'text', text);
+                    device.sendMessageToDevice(from_address, 'text',
+                        "[[Earn Bytes]](command:earn_bytes) " + " | " + " [[Boost Post]](command:boost_post)" + " | " + " [[Boost statistics]](command:statistics)");
                 }
 
             });
@@ -336,8 +338,8 @@ eventBus.once('headless_wallet_ready', () => {
                         boostPost(from_address, rows[0].task_id)
                     });
 
-                } else if (rows[0].account_type === 'boost_post' && rows[0].step_booster === 'task_paid') {
-
+                } else if (rows[0].account_type === 'earn_bytes' && rows[0].step_worker === 'worker_info') {
+                    earnBytes(from_address)
                 }
             });
         }
