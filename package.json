@@ -1,0 +1,14 @@
+{
+	"name": "SocialBoost Bot",
+	"version": "1.0.0",
+	"description": "Bot for Byteball wallet",
+	"main": "start.js",
+	"repository": "https://github.com/byteball/bot-example.git",
+	"author": "kaiurin",
+	"license": "MIT",
+	"dependencies": {
+		"dsteem": "git+https://github.com/jnordberg/dsteem.git",
+		"byteballcore": "git+https://github.com/byteball/byteballcore.git",
+		"headless-byteball": "git+https://github.com/byteball/headless-byteball.git"
+	}
+}
