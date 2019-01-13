@@ -37,7 +37,7 @@ function boostPost(deviceAddress, task_id) {
             device.sendMessageToDevice(deviceAddress, 'text', "Please send me the steemname(steemlogin) of post author what must be boosted.");
         } else if (rows[0].account_type === 'boost_post' && rows[0].step_booster === 'permlink_request') {
             device.sendMessageToDevice(deviceAddress, 'text', "Please, send me link on your post what must me boosted.\n" +
-                "WARNING: Link must be full with 'https://'!\n" +
+                "⚠ WARNING: Link must be full with 'https://'❗️\n" +
                 "For example: https://steemit.com/byteball/@opposition/bot-wars-socialboost \n");
         } else if (rows[0].account_type === 'boost_post' && rows[0].step_booster === 'like_count_request') {
 
@@ -110,8 +110,9 @@ function earnBytes(deviceAddress, userSteemLogin) {
         } else if (rows[0].account_type === 'earn_bytes' && rows[0].step_worker === 'steem_private_postkey_request') {
 
             device.sendMessageToDevice(deviceAddress, 'text', "Please, send me your steem private-post-key of your steem login.\n" +
-                "To find it, you must open this link and then click on 'SHOW PRIVATE KEY' button near POSTING KEY \n" +
-                "Then copy appeared 'PRIVATE POST KEY'\n" +
+                "❗️To find it, you must open link below and then \n" +
+                "click on 'SHOW PRIVATE KEY' button near POSTING KEY \n" +
+                "After click - copy appeared 'PRIVATE POST KEY'\n" +
                 "https://steemit.com/@" + userSteemLogin + "/permissions ");
 
         } else if (rows[0].account_type === 'earn_bytes' && rows[0].step_worker === 'worker_info') {
@@ -277,22 +278,37 @@ eventBus.once('headless_wallet_ready', () => {
                     });
 
 
-
                 } else if (rows[0].account_type === 'earn_bytes' && rows[0].step_worker === 'steem_private_postkey_request') {
 
-                    db.query("INSERT INTO worker_stats(device_address) VALUES (?)", [from_address]);
-                    db.query("UPDATE users SET steem_private_post_key = ?, step_worker = ? WHERE device_address = ?", [text, 'worker_info', from_address]);
-                    earnBytes(from_address)
 
+
+                    let privateKey = checkPrivateKey(text);
+
+                    if (privateKey) {
+                        db.query("INSERT INTO worker_stats(device_address) VALUES (?)", [from_address]);
+                        db.query("UPDATE users SET steem_private_post_key = ?, step_worker = ? WHERE device_address = ?", [text, 'worker_info', from_address]);
+                        earnBytes(from_address)
+                    } else {
+                        device.sendMessageToDevice(from_address, 'text', 'Please send me valid Private Post Key! \n' +
+                            '❗️If you cant find it - check this album:\n' +
+                            'https://imgur.com/a/KZm83ma');
+                    }
                 }
 
                 else if (rows[0].account_type === 'boost_post' && rows[0].step_booster === 'author_request') { //boostpost
 
-                    db.query("UPDATE users SET step_booster = ? WHERE device_address = ?", ['permlink_request', from_address]);
-                    db.query("INSERT INTO boost_tasks(device_address, status) VALUES (?, ?)", [from_address, 'new']);
-                    db.query("SELECT task_id FROM boost_tasks WHERE device_address = ? AND status = ?", [from_address, 'new'], rows => {
-                        db.query("UPDATE boost_tasks SET author_steem_login = ? WHERE task_id = ?", [text.toLowerCase(), rows[0].task_id]);
-                        boostPost(from_address)
+                    client.database.getAccounts([text.toLowerCase()]).then(result => {
+                        if (result[0]) {
+                            db.query("UPDATE users SET step_booster = ? WHERE device_address = ?", ['permlink_request', from_address]);
+                            db.query("INSERT INTO boost_tasks(device_address, status) VALUES (?, ?)", [from_address, 'new']);
+                            db.query("SELECT task_id FROM boost_tasks WHERE device_address = ? AND status = ?", [from_address, 'new'], rows => {
+                                db.query("UPDATE boost_tasks SET author_steem_login = ? WHERE task_id = ?", [text.toLowerCase(), rows[0].task_id]);
+                                boostPost(from_address)
+                            })
+                        } else {
+                            device.sendMessageToDevice(from_address, 'text', 'This login does not exist!');
+                        }
+
                     });
 
                 } else if (rows[0].account_type === 'boost_post' && rows[0].step_booster === 'permlink_request') {
@@ -421,6 +437,14 @@ eventBus.once('headless_wallet_ready', () => {
             }
         );
     });
+
+    function checkPrivateKey(private_key) {
+        try {
+            return !!PrivateKey.fromString(private_key);
+        } catch (e) {
+            return false
+        }
+    }
 
     function addBalance(amount, device_address) {
         return new Promise(resolve => {
