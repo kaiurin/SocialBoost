@@ -1,7 +1,7 @@
 # SocialBoost Bot
 
 Source code of SocialBoost Bot for Byteball.
-
+Bot Code in start.js file.
 ## Requirements
 
 node.js 6+
